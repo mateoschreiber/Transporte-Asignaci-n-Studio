@@ -4,7 +4,7 @@ Elige Método Gráfico, Método Simplex, Transporte o Asignación desde el inici
 
 La biblioteca muestra cada enunciado antes del modelo editable e indica su PDF y página. Incluye los siete problemas de Método Gráfico, SONY, agricultor, McDonald’s, camiones, industria, Práctica Máx y las dos variantes de alimentos. El modelo impreso de alimentos alcanza `670/9` y la variante de un kilogramo con cotas inclusivas alcanza `260/3`.
 
-Los PDF de estudio incluyen [Método Gráfico y Simplex](Metodo_Grafico_y_Simplex_IEEE.pdf), con teoría y resoluciones paso a paso, y [Transporte y Asignación](Teoria_Transporte_y_Asignacion_IEEE.pdf), con los fundamentos de ambos métodos.
+Los PDF de estudio reúnen teoría, fórmulas, datos y resoluciones paso a paso. [Método Gráfico y Simplex](Metodo_Grafico_y_Simplex_IEEE.pdf) incluye gráficos y tablas de pivoteo. [Transporte y Asignación](Teoria_Transporte_y_Asignacion_IEEE.pdf) incluye tablas de reparto, ciclos MODI y ajustes del método húngaro.
 
 En **Mi sesión**, puedes exportar tus borradores, avances y exámenes en JSON. La versión 2 migra los respaldos anteriores y conserva el examen mixto de Transporte y Asignación. **Mixto general** tiene una tarea por tema. Ambos exámenes duran 20 minutos.
 
