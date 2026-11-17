@@ -143,7 +143,13 @@ summary { cursor: pointer; color: var(--accent); font-weight: 650; padding: 7px 
 progress { accent-color: var(--accent); width: min(100%, 530px); height: 14px; }
 .session-controls, .lab-result { margin-top: 16px; }
 .lab-result:empty { display: none; }
-.problem-text { margin: 14px 0; }
+.exercise-intro { margin-bottom: 16px; }
+.exercise-statement, .statement-original, .statement-adapted { display: grid; grid-template-columns: minmax(0, 1fr); gap: 8px; }
+.exercise-statement p, .exercise-statement ul { margin-block: 0; }
+.exercise-statement ul { padding-inline-start: 24px; }
+.exercise-statement .meta { font-size: .82rem; }
+.statement-original > .matrix-scroll, .statement-original > div, .statement-original > details { max-width: 680px; }
+.statement-adapted { border-top: 1px solid var(--line); padding-top: 8px; }
 .totals { margin: 0; display: grid; gap: 4px; }
 .totals > div { display: flex; padding: 5px 0; border-bottom: 1px solid var(--line); justify-content: space-between; gap: 8px; }
 .totals dd { font-family: var(--mono); margin: 0; }

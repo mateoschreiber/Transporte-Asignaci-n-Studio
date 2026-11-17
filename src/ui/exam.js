@@ -2,6 +2,7 @@ import { EXAM_LENGTH, examCases, examTopics, finishExam, gradeExam, startExam } 
 import { assignmentStep } from './assignment.js';
 import { button, el, pageTitle } from './dom.js';
 import { matrixTable, sourceMatrix } from './table.js';
+import { exerciseStatement, hasAdaptedTable } from './statement.js';
 import { tracePlayer } from './trace.js';
 import { balanceStep, transportStep } from './transport.js';
 
@@ -83,8 +84,8 @@ function examInProgress(attempt, save, submit) {
       el('div', { class: 'answer-grid' }, metric('z', 'Costo Z de las parejas'))
     ];
     return el('section', { class: 'panel stack', 'aria-label': item.exercise.title },
-      el('h2', {}, item.exercise.title), el('p', {}, item.exercise.text),
-      sourceMatrix(item.draft), details);
+      el('h2', {}, item.exercise.title), exerciseStatement(item.exercise),
+      hasAdaptedTable(item.exercise) && sourceMatrix(item.draft), details);
   });
   const clock = el('output', { class: 'exam-clock', 'data-exam-clock': '', 'aria-label': 'Tiempo restante' },
     clockText(attempt.deadline - Date.now()));
@@ -118,6 +119,7 @@ function report(attempt, next) {
         open.setAttribute('aria-expanded', 'true');
       }, { 'aria-expanded': 'false' });
       return el('section', { class: 'panel stack' }, el('h2', {}, item.exercise.title),
+        exerciseStatement(item.exercise),
         el('ul', { class: 'marks' }, marks.map(({ label, ok, text }) =>
           el('li', { class: ok ? 'correct' : 'incorrect' },
             el('strong', {}, (ok ? '✓ ' : '× ') + label), el('p', {}, text)))),

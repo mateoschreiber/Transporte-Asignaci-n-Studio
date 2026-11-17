@@ -3,6 +3,7 @@ import { MAX_BACKUP_SIZE, parseBackup, readSession, writeSession } from '../stat
 import { announce, button, el, link, pageTitle } from './dom.js';
 import { editMatrix } from './matrix.js';
 import { sourceMatrix } from './table.js';
+import { exerciseStatement } from './statement.js';
 import { transportLab } from './transport-lab.js';
 import { assignmentControls, assignmentLab } from './assignment-lab.js';
 import { clockText, examView } from './exam.js';
@@ -214,8 +215,7 @@ function renderLibrary() {
       el('article', { class: 'card' },
         el('p', { class: 'chip' }, topicLabels[exercise.topic] + ' · ' + exercise.difficulty),
         el('h2', {}, exercise.title),
-        el('p', {}, exercise.text),
-        el('p', { class: 'meta' }, exercise.source + (exercise.page ? ' · pág. ' + exercise.page : '')),
+        exerciseStatement(exercise, { compact: true }),
         el('div', { class: 'actions' },
           button('Abrir editor', () => openExercise(exercise.id), { 'aria-label': 'Abrir ' + exercise.title }),
           button('Aprender', () => openExercise(exercise.id, { mode: 'learn', optimize: true }), { 'aria-label': 'Aprender con ' + exercise.title }),
@@ -237,6 +237,7 @@ function renderLab(topic) {
   const draft = state.drafts[topic] ?? (state.drafts[topic] = exerciseDraft(fallback));
   const source = preset?.exercise || getExercise(draft.exerciseId);
   const lab = topic === 'transport' ? transportLab(draft, preset ?? {}) : assignmentLab(draft, source);
+  const statement = source && exerciseStatement(source, { heading: 'h2', focusable: true });
   const status = el('p', { class: 'status', role: 'status' });
   let invalidField = '';
   function update() {
@@ -278,12 +279,19 @@ function renderLab(topic) {
     el('h2', {}, 'Matriz editable'),
     el('div', { class: 'field' }, el('label', { class: 'field' }, 'Ejercicio', select),
       source && button('Restaurar datos del ejercicio', () => openExercise(source.id))),
-    source && el('p', { class: 'problem-text' }, source.text),
     topic === 'assignment' && assignmentControls(draft, update),
     editMatrix(draft, update, rebuild));
-  queueMicrotask(() => { update(); if (preset?.mode) lab.start(preset.mode); });
+  queueMicrotask(() => {
+    update();
+    if (preset?.mode) {
+      lab.start(preset.mode);
+      statement.focus({ preventScroll: true });
+      statement.scrollIntoView({ block: 'start' });
+    }
+  });
   return el('div', {},
     pageTitle(topicLabels[topic], source?.title || 'Matriz propia', [link('Biblioteca', 'biblioteca', { class: 'button' })]),
+    statement && el('div', { class: 'panel exercise-intro' }, statement),
     el('div', { class: 'workspace' }, panel, el('aside', { class: 'stack' },
       el('section', { class: 'panel' }, el('h2', {}, 'Validación'), status, lab?.overview),
       lab?.tools,
