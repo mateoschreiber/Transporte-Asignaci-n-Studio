@@ -8,13 +8,12 @@ Con Node.js 22.12 o posterior, ejecuta:
 
 ```sh
 npm ci
-npm run build
 ```
 
-Abre `dist/index.html` con doble clic. El archivo incluye la aplicación y funciona también sin conexión.
+La instalación genera `dist/index.html`. Abre el archivo con doble clic para usarlo sin conexión. Ejecuta `npm run build` tras editar el código.
 
 ## Publicar en Cloudflare Workers
 
-En **Workers & Pages**, crea un Worker e importa este repositorio de GitHub desde la rama `main`. Usa el nombre `transporte-asignacion-studio`, el directorio raíz del repositorio, `npm run build` como comando de compilación y `npx wrangler deploy` como comando de despliegue.
+En **Workers & Pages**, conecta este repositorio de GitHub desde la rama `main` al Worker `transporte-asignaci-n-studio`. Usa la raíz del repositorio y `npx wrangler deploy` como comando de despliegue. La instalación automática de dependencias compila el HTML mediante `postinstall`. Si desactivas esa instalación, ejecuta `npm ci` como comando de compilación.
 
 Wrangler sirve solo el HTML de `dist/`. Autoriza este repositorio en la integración de Cloudflare Workers & Pages y gestiona la autenticación desde Cloudflare. [Guía oficial de Workers Builds](https://developers.cloudflare.com/workers/ci-cd/builds/configuration/)
