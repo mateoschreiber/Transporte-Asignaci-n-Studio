@@ -1,0 +1,11 @@
+/node_modules/
+/dist/
+/.wrangler/
+/test-results/
+/sesion-transporte-asignacion*.json
+.env*
+.dev.vars*
+*.pdf
+*.pem
+*.key
+*.log
