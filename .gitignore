@@ -6,6 +6,7 @@
 .env*
 .dev.vars*
 *.pdf
+!/Teoria_Transporte_y_Asignacion_IEEE.pdf
 *.pem
 *.key
 *.log
