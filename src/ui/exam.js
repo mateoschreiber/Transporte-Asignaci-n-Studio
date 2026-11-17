@@ -5,6 +5,11 @@ import { matrixTable, sourceMatrix } from './table.js';
 import { exerciseStatement, hasAdaptedTable } from './statement.js';
 import { tracePlayer } from './trace.js';
 import { balanceStep, transportStep } from './transport.js';
+import { graphPlayer, lpStatement, modelFormulas } from './lp-lab.js';
+import { simplexStep } from './lp-table.js';
+
+const isLinear = (item) => item.topic === 'graphic' || item.topic === 'simplex';
+const statement = (item) => isLinear(item) ? lpStatement(item.exercise) : exerciseStatement(item.exercise);
 
 export function clockText(ms) {
   const seconds = Math.max(0, Math.ceil(ms / 1000));
@@ -59,7 +64,13 @@ function examInProgress(attempt, save, submit) {
     const menu = (name, title, options) => el('label', { class: 'field-vertical' }, title, bind(readKey(name),
       el('select', {}, el('option', { value: '' }, 'Selecciona…'), options.map(([value, label]) => el('option', { value }, label)))));
     const { model } = item;
-    const details = item.topic === 'transport' ? [
+    const details = item.brief ? [metric('z', 'Valor óptimo de Z')] : isLinear(item) ? [
+      modelFormulas(model),
+      el('div', { class: 'answer-grid' },
+        metric('operation', item.topic === 'graphic' ? 'Corte con X₁ de R1' : 'Primer pivote'),
+        model.variables.map(({ name }, i) => metric('x-' + i, 'Valor de ' + name)),
+        metric('z', 'Valor óptimo de Z'))
+    ] : item.topic === 'transport' ? [
       el('div', { class: 'answer-grid' },
         menu('balance', 'Balanceo necesario', [['none', 'Ninguno'], ['row', 'Origen ficticio'], ['column', 'Destino ficticio']]),
         model.fictitious && metric('fictitious', 'Cantidad del ficticio'),
@@ -84,8 +95,8 @@ function examInProgress(attempt, save, submit) {
       el('div', { class: 'answer-grid' }, metric('z', 'Costo Z de las parejas'))
     ];
     return el('section', { class: 'panel stack', 'aria-label': item.exercise.title },
-      el('h2', {}, item.exercise.title), exerciseStatement(item.exercise),
-      hasAdaptedTable(item.exercise) && sourceMatrix(item.draft), details);
+      el('h2', {}, item.exercise.title), statement(item),
+      !isLinear(item) && hasAdaptedTable(item.exercise) && sourceMatrix(item.draft), details);
   });
   const clock = el('output', { class: 'exam-clock', 'data-exam-clock': '', 'aria-label': 'Tiempo restante' },
     clockText(attempt.deadline - Date.now()));
@@ -113,13 +124,15 @@ function report(attempt, next) {
           return;
         }
         const transport = item.topic === 'transport';
-        slot.replaceChildren(tracePlayer(transport ? [balanceStep(item.model), ...reference.steps] : reference.steps,
-          (step) => transport ? transportStep(item.model, step) : assignmentStep(item.model, step)));
+        slot.replaceChildren(item.topic === 'graphic' ? graphPlayer(item.model, reference) :
+          tracePlayer(transport ? [balanceStep(item.model), ...reference.steps] : reference.steps,
+            (step) => transport ? transportStep(item.model, step) :
+              item.topic === 'simplex' ? simplexStep(step) : assignmentStep(item.model, step)));
         open.textContent = 'Ocultar solución';
         open.setAttribute('aria-expanded', 'true');
       }, { 'aria-expanded': 'false' });
       return el('section', { class: 'panel stack' }, el('h2', {}, item.exercise.title),
-        exerciseStatement(item.exercise),
+        statement(item),
         el('ul', { class: 'marks' }, marks.map(({ label, ok, text }) =>
           el('li', { class: ok ? 'correct' : 'incorrect' },
             el('strong', {}, (ok ? '✓ ' : '× ') + label), el('p', {}, text)))),

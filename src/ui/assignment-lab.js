@@ -33,7 +33,7 @@ export function assignmentControls(draft, update) {
       }))));
 }
 
-export function assignmentLab(draft, source) {
+export function assignmentLab(draft, source, checkpoint) {
   let model;
   const overview = el('div', { class: 'stack' });
   const result = el('div', { class: 'stack lab-result', tabindex: '-1' });
@@ -45,7 +45,8 @@ export function assignmentLab(draft, source) {
   const practice = button('Practicar', () => {
     overview.hidden = true;
     const panel = practicePanel(() => assignmentPractice(model),
-      () => show(button('Volver a la práctica', () => show(panel), { class: 'return-practice' }), solution()));
+      () => show(button('Volver a la práctica', () => show(panel), { class: 'return-practice' }), solution()),
+      checkpoint?.('hungarian'));
     show(panel);
   });
   const compare = source?.compareWith && button('Comparar con JobShop original', () => {

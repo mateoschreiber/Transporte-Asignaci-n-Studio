@@ -5,12 +5,30 @@ import { solveInitial } from './transport-initial.js';
 import { solveModi } from './modi.js';
 import { assignmentModel, checkAssignment } from './assignment-model.js';
 import { solveHungarian } from './hungarian.js';
+import { lpExercises } from '../data/lp-exercises.js';
+import { parseLP, dot, validPoint } from './lp.js';
+import { compare, divide, parseRational, subtract } from './rational.js';
+import { solveGraphical } from './graphical.js';
+import { solveSimplex } from './simplex.js';
 
 export const EXAM_LENGTH = 20 * 60_000;
-export const examTopics = { mixed: 'Mixto', transport: 'Transporte', assignment: 'Asignación' };
+export const examTopics = { mixed: 'Mixto', transport: 'Transporte', assignment: 'Asignación',
+  graphic: 'Método Gráfico', simplex: 'Método Simplex', 'mixed-general': 'Mixto general' };
 const cases = { mixed: ['mataderos', 'maquinas'], transport: ['abc'], assignment: ['job-b'] };
 
 export function examCases(topic) {
+  const linear = {
+    graphic: [['g3', 'graphic']],
+    simplex: [['practica-max', 'simplex']],
+    'mixed-general': [['sony', 'graphic'], ['practica-max', 'simplex']]
+  };
+  const lpCases = (Object.hasOwn(linear, topic) ? linear[topic] : []).map(([id, method]) => {
+    const exercise = lpExercises.find((item) => item.id === id);
+    const draft = exercise.variants[0].draft;
+    return { id, exercise, draft, model: parseLP(draft), topic: method };
+  });
+  if (topic === 'mixed-general') return [...lpCases, ...examCases('mixed').map((item) => ({ ...item, brief: true }))];
+  if (lpCases.length) return lpCases;
   return (cases[topic] || []).map((id) => {
     const exercise = getExercise(id);
     const draft = exerciseDraft(exercise);
@@ -20,7 +38,7 @@ export function examCases(topic) {
 }
 
 export function startExam(topic, now) {
-  if (!Object.hasOwn(cases, topic)) throw new Error('Tema de examen inválido.');
+  if (!Object.hasOwn(examTopics, topic)) throw new Error('Tema de examen inválido.');
   return { topic, started: now, deadline: now + EXAM_LENGTH, finished: null, answers: {} };
 }
 
@@ -33,6 +51,8 @@ export function finishExam(state, time) {
 }
 
 export function examReference(item) {
+  if (item.topic === 'graphic') return solveGraphical(item.model);
+  if (item.topic === 'simplex') return solveSimplex(item.model);
   if (item.topic === 'transport') {
     const initial = solveInitial(item.model, 'northwest');
     const optimal = solveModi(item.model, initial.state);
@@ -40,6 +60,32 @@ export function examReference(item) {
   }
   const result = solveHungarian(item.model);
   return { optimal: result.z, steps: result.steps };
+}
+
+function closeResponse(text, expected) {
+  try {
+    const difference = subtract(parseRational(text), expected);
+    return Math.abs(Number(difference.numerator) / Number(difference.denominator)) <= 0.00005;
+  } catch { return false; }
+}
+
+function linearResults(item, read, reference) {
+  const { model } = item;
+  const expected = item.topic === 'graphic' ? divide(model.constraints[0].bound, model.constraints[0].coefficients[0]) :
+    reference.steps.find(({ kind }) => kind === 'pivot').pivotValue;
+  let feasible = false;
+  let optimal = false;
+  try {
+    const point = model.variables.map((_, i) => parseRational(read('x-' + i)));
+    feasible = validPoint(model, point);
+    optimal = feasible && compare(dot(model.objective, point), reference.value) === 0;
+  } catch { /* Missing coordinates are reported in the grade. */ }
+  return [
+    { label: item.topic === 'graphic' ? 'Corte con X₁ de R1' : 'Primer pivote', ok: closeResponse(read('operation'), expected),
+      text: item.topic === 'graphic' ? 'Fija X₂ = 0 en R1.' : 'La fila saliente tiene el menor cociente válido.' },
+    { label: 'Factibilidad del punto', ok: feasible, text: 'Revisa los dominios y las restricciones originales.' },
+    { label: 'Optimalidad y valor de Z', ok: optimal && closeResponse(read('z'), reference.value), text: 'Comprueba el punto óptimo y sustitúyelo en el objetivo.' }
+  ].map((mark) => mark.ok ? { ...mark, text: 'Correcto.' } : mark);
 }
 
 function equalsNumber(response, scale, expected) {
@@ -121,7 +167,11 @@ export function gradeExam(attempt) {
   const problems = examCases(attempt.topic).map((item) => {
     const read = (key) => attempt.answers[item.id + '-' + key] ?? '';
     const reference = examReference(item);
-    const marks = item.topic === 'transport' ? transportResults(item, read, reference) : assignmentResults(item, read, reference);
+    const marks = item.brief
+      ? [{ label: 'Valor óptimo de Z', ok: equalsNumber(read('z'), item.model.objectiveScale ?? item.model.costScale, reference.optimal),
+        text: 'Contrasta el resultado con la resolución del laboratorio.' }]
+      : item.topic === 'transport' ? transportResults(item, read, reference)
+        : item.topic === 'assignment' ? assignmentResults(item, read, reference) : linearResults(item, read, reference);
     return { item, marks, reference };
   });
   const marks = problems.flatMap(({ marks }) => marks);

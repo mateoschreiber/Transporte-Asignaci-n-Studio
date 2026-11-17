@@ -1,14 +1,45 @@
 import { numberAtScale } from '../core/input.js';
 import { button, el } from './dom.js';
 
-export function practicePanel(makeSession, solution) {
+export function practicePanel(makeSession, solution, checkpoint = {}) {
   let session = makeSession();
   let position = 0;
+  const history = [...(checkpoint.read?.() ?? [])];
+  const controls = (fields) => [...fields.querySelectorAll('input, select, button')];
+  function fieldsFor(task) {
+    return el('div', { class: 'practice-fields' }, task.fields, task.scene);
+  }
+  try {
+    for (const decisions of history) {
+      const task = session.next();
+      if (task.complete) throw new Error('La práctica ya terminó.');
+      const fields = fieldsFor(task);
+      for (const [index, kind, value] of decisions) {
+        const control = controls(fields)[index];
+        if (!control) throw new Error('Control de práctica desconocido.');
+        if (kind === 'click' && control.tagName === 'BUTTON') control.click();
+        else if (kind === 'input' || kind === 'change') {
+          if (control.type === 'checkbox') control.checked = value;
+          else control.value = value;
+          control.dispatchEvent(new Event(kind, { bubbles: true }));
+        }
+      }
+      if (task.validate()) throw new Error('La respuesta guardada dejó de ser válida.');
+      task.proceed();
+      position++;
+    }
+  } catch {
+    session = makeSession();
+    position = 0;
+    history.length = 0;
+  }
   const body = el('div', { class: 'stack' });
   const panel = el('section', { class: 'panel practice-panel', 'aria-label': 'Practicar paso a paso' },
     el('div', { class: 'trace-header' }, el('h2', {}, 'Practicar paso a paso'),
       el('div', { class: 'actions' },
-        button('Reiniciar', () => { session = makeSession(); position = 0; render(true); }),
+        button('Reiniciar', () => {
+          session = makeSession(); position = 0; history.length = 0; checkpoint.write?.(history); render(true);
+        }),
         button('Ver resolución', solution))),
     body);
   function render(focus = false) {
@@ -22,7 +53,14 @@ export function practicePanel(makeSession, solution) {
     const feedback = el('p', { id: 'practice-feedback', class: 'feedback', role: 'status' });
     const hint = el('p', { class: 'hint-text', role: 'status' });
     const heading = el('h3', { tabindex: '-1' }, task.title);
-    const proceed = button('Continuar →', () => { task.proceed(); position++; render(true); }, { class: 'primary', hidden: true });
+    const decisions = [];
+    const proceed = button('Continuar →', () => {
+      task.proceed();
+      position++;
+      history.push(decisions);
+      checkpoint.write?.(history);
+      render(true);
+    }, { class: 'primary', hidden: true });
     const check = button('Comprobar', () => {
       let issue;
       try {
@@ -50,7 +88,15 @@ export function practicePanel(makeSession, solution) {
       feedback.className = 'feedback';
       check.disabled = false;
     }
-    const fields = el('div', { class: 'practice-fields' }, task.fields, task.scene);
+    const fields = fieldsFor(task);
+    function record(event) {
+      const control = event.target.closest(event.type === 'click' ? 'button' : 'input, select');
+      const index = controls(fields).indexOf(control);
+      if (index < 0) return;
+      const value = control.type === 'checkbox' ? control.checked : control.value;
+      decisions.push([index, event.type, event.type === 'click' ? '' : value]);
+    }
+    for (const event of ['input', 'change', 'click']) fields.addEventListener(event, record, true);
     for (const event of ['input', 'change', 'click']) fields.addEventListener(event, changed);
     fields.addEventListener('keydown', (event) => {
       if (event.key === 'Enter' && event.target instanceof HTMLInputElement &&

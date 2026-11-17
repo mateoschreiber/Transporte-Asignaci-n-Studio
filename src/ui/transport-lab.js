@@ -8,7 +8,7 @@ import { tracePlayer } from './trace.js';
 import { practicePanel } from './practice.js';
 import { transportPractice } from './transport-practice.js';
 
-export function transportLab(draft, preset = {}) {
+export function transportLab(draft, preset = {}, checkpoint) {
   const overview = el('div', { class: 'stack' });
   const result = el('div', { class: 'stack lab-result', tabindex: '-1' });
   const method = el('select', { 'aria-label': 'Método de Transporte' },
@@ -31,7 +31,8 @@ export function transportLab(draft, preset = {}) {
   const practice = button('Practicar', () => {
     overview.hidden = true;
     const panel = practicePanel(() => transportPractice(model, method.value, optimize.checked),
-      () => show(button('Volver a la práctica', () => show(panel), { class: 'return-practice' }), solution()));
+      () => show(button('Volver a la práctica', () => show(panel), { class: 'return-practice' }), solution()),
+      checkpoint?.(method.value + ':' + optimize.checked));
     show(panel);
   });
   const compare = button('Comparar SBF', () => {

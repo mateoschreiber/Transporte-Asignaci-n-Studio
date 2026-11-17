@@ -8,6 +8,8 @@ import { transportLab } from './transport-lab.js';
 import { assignmentControls, assignmentLab } from './assignment-lab.js';
 import { clockText, examView } from './exam.js';
 import { finishExam } from '../core/assessment.js';
+import { lpExercises } from '../data/lp-exercises.js';
+import { lpLab, lpRoutes, lpStatement, lpTitles } from './lp-lab.js';
 
 const main = document.querySelector('main');
 const nav = document.querySelector('#navigation');
@@ -17,21 +19,45 @@ const session = readSession();
 let { state, available } = session;
 let route = 'inicio';
 let requestedExercise = null;
+let requestedLP = null;
+const linearTopics = Object.keys(lpRoutes);
 
 const paths = { transport: 'transporte', assignment: 'asignacion' };
 const topicLabels = { transport: 'Transporte', assignment: 'Asignación' };
 const sections = [
   ['inicio', 'Inicio'], ['repaso', 'Repaso'], ['biblioteca', 'Biblioteca'],
+  ['grafico', lpTitles.graphic], ['simplex', lpTitles.simplex],
   ['transporte', 'Transporte'], ['asignacion', 'Asignación'], ['examen', 'Examen']
 ];
 const view = {
   inicio: renderHome, repaso: renderReview, biblioteca: renderLibrary,
   transporte: () => renderLab('transport'), asignacion: () => renderLab('assignment'),
+  grafico: () => renderLP('graphic'), simplex: () => renderLP('simplex'),
   examen: () => examView(state, save, render)
 };
 
 function save() {
   available = writeSession(state);
+}
+
+function go(target) {
+  if (location.hash === '#' + target) render(true);
+  else location.hash = target;
+}
+
+function openLP(topic, id, mode) {
+  const exercise = lpExercises.find((item) => item.id === id);
+  state.linear[topic] = { exercise: id, variant: 0, mode, step: 0,
+    draft: structuredClone(exercise.variants[0].draft) };
+  requestedLP = { topic, mode };
+  save();
+  go(lpRoutes[topic]);
+}
+
+function renderLP(topic) {
+  const mode = requestedLP?.topic === topic ? requestedLP.mode : undefined;
+  requestedLP = null;
+  return lpLab(topic, state, save, render, go, mode);
 }
 
 function applyTheme() {
@@ -124,7 +150,7 @@ function renderHome() {
   return el('div', {},
     el('section', { class: 'hero' },
       el('div', {},
-        el('h1', {}, 'Transporte y Asignación'),
+        el('h1', {}, 'Investigación de Operaciones Studio'),
         el('p', {}, 'Resuelve problemas de Investigación de Operaciones, sigue cada cálculo y practica con tus propias matrices.'),
         el('div', { class: 'actions' }, link('Abrir el repaso de 5 horas', 'repaso', { class: 'button' }))),
       el('div', { class: 'hero-example' },
@@ -135,6 +161,8 @@ function renderHome() {
     el('div', { class: 'section-title' }, el('h2', {}, 'Laboratorios'),
       link('Ver biblioteca ↗', 'biblioteca')),
     el('div', { class: 'cards' },
+      linearTopics.map((topic) => el('article', { class: 'card' }, el('h3', {}, lpTitles[topic]),
+        el('div', { class: 'actions' }, link('Abrir ' + lpTitles[topic], lpRoutes[topic], { class: 'button' })))),
       el('article', { class: 'card' }, el('h3', {}, 'Transporte'), el('p', {}, 'Distribuye ofertas entre destinos y encuentra un reparto de costo mínimo.'),
         el('div', { class: 'actions' }, link('Abrir Transporte', 'transporte', { class: 'button' }))),
       el('article', { class: 'card' }, el('h3', {}, 'Asignación'), el('p', {}, 'Elige parejas entre tareas y recursos con el método Húngaro.'),
@@ -145,6 +173,7 @@ function renderReview() {
   const done = modules.filter((module) => state.completed.includes(module.id)).reduce((sum, module) => sum + module.minutes, 0);
   return el('div', {},
     pageTitle('Repaso de cinco horas', done + ' de 300 minutos en módulos completados.'),
+    linearReview(),
     el('progress', { value: done, max: 300, 'aria-label': 'Progreso del repaso de cinco horas' }),
     studyControls(),
     el('div', { class: 'module-list' }, modules.map((item) =>
@@ -164,24 +193,47 @@ function renderReview() {
           }, { id: 'module-' + item.id, 'aria-pressed': String(state.completed.includes(item.id)) }))))));
 }
 
-function studyElapsed() {
-  return state.study.elapsed + (state.study.started === null ? 0 : Math.max(0, Date.now() - state.study.started));
+function linearReview() {
+  const itinerary = [
+    ['fundamentos', 'Fundamentos', 15, 'graphic', 'sony'],
+    ['graphic', 'Método Gráfico', 30, 'graphic', 'g3'],
+    ['simplex', 'Método Simplex', 55, 'simplex', 'agricultor'],
+    ['practica', 'Práctica y comprobación', 20, 'simplex', 'practica-max']
+  ];
+  const minutes = itinerary.reduce((total, [id, , duration]) => total + (state.lpCompleted.includes(id) ? duration : 0), 0);
+  return el('section', { class: 'panel stack' }, el('h2', {}, 'Repaso de dos horas · Gráfico y Simplex'),
+    el('p', {}, minutes + ' de 120 minutos en módulos completados.'),
+    el('progress', { value: minutes, max: 120, 'aria-label': 'Progreso de Gráfico y Simplex' }),
+    studyControls('lpStudy'),
+    itinerary.map(([id, title, duration, topic, exercise]) => el('section', { class: 'module-row' },
+      el('h3', {}, title + ' · ' + duration + ' min'),
+      button('Estudiar', () => openLP(topic, exercise, id === 'practica' ? 'practice' : 'learn')),
+      button(state.lpCompleted.includes(id) ? 'Completado' : 'Marcar completado', () => {
+        state.lpCompleted = state.lpCompleted.includes(id) ? state.lpCompleted.filter((entry) => entry !== id) : [...state.lpCompleted, id];
+        save(); render(); document.getElementById('lp-' + id)?.focus();
+      }, { id: 'lp-' + id, 'aria-pressed': String(state.lpCompleted.includes(id)) }))));
 }
 
-function studyControls() {
-  const started = state.study.started !== null;
+function studyElapsed(key = 'study') {
+  const { elapsed, started } = state[key];
+  return elapsed + (started === null ? 0 : Math.max(0, Date.now() - started));
+}
+
+function studyControls(key = 'study') {
+  const study = state[key];
+  const started = study.started !== null;
   return el('section', { class: 'panel study-bar' },
     el('div', { class: 'field' }, el('span', {}, 'Tiempo de estudio'),
-      el('output', { class: 'exam-clock', 'data-study-clock': '', 'aria-label': 'Tiempo de estudio' }, clockText(studyElapsed()))),
-    button(started ? 'Pausar estudio' : state.study.elapsed ? 'Continuar estudio' : 'Iniciar estudio', () => {
+      el('output', { class: 'exam-clock', 'data-study-clock': key, 'aria-label': 'Tiempo de estudio' }, clockText(studyElapsed(key)))),
+    button(started ? 'Pausar estudio' : study.elapsed ? 'Continuar estudio' : 'Iniciar estudio', () => {
       if (started) {
-        state.study.elapsed = studyElapsed();
-        state.study.started = null;
-      } else state.study.started = Date.now();
+        study.elapsed = studyElapsed(key);
+        study.started = null;
+      } else study.started = Date.now();
       save();
       render();
-      document.querySelector('#study-toggle')?.focus();
-    }, { id: 'study-toggle' }));
+      document.getElementById(key + '-toggle')?.focus();
+    }, { id: key + '-toggle' }));
 }
 
 function expireExam() {
@@ -197,21 +249,44 @@ setInterval(() => {
   if (expireExam() && route === 'examen') render(true);
   const clock = document.querySelector('[data-exam-clock]');
   if (clock && state.exam) clock.textContent = clockText(state.exam.deadline - Date.now());
-  const studyClock = document.querySelector('[data-study-clock]');
-  if (studyClock) studyClock.textContent = clockText(studyElapsed());
+  for (const studyClock of document.querySelectorAll('[data-study-clock]')) {
+    studyClock.textContent = clockText(studyElapsed(studyClock.dataset.studyClock));
+  }
 }, 500);
 
 function renderLibrary() {
   const results = el('div', { class: 'cards' });
   const query = el('input', { type: 'search', placeholder: 'Nombre, método o fuente', 'aria-label': 'Buscar ejercicios' });
   const filter = el('select', { 'aria-label': 'Filtrar por tema' },
-    el('option', { value: 'all' }, 'Todos'), el('option', { value: 'transport' }, 'Transporte'), el('option', { value: 'assignment' }, 'Asignación'));
+    el('option', { value: 'all' }, 'Todos'), linearTopics.map((topic) => el('option', { value: topic }, lpTitles[topic])),
+    el('option', { value: 'transport' }, 'Transporte'), el('option', { value: 'assignment' }, 'Asignación'));
+  const field = (label, options) => el('select', { 'aria-label': 'Filtrar por ' + label.toLowerCase() },
+    el('option', { value: 'all' }, 'Todos'), options.map(([value, caption]) => el('option', { value }, caption)));
+  const method = field('Método', [...Object.entries(lpTitles), ['northwest', 'Esquina Noroeste'], ['minimum', 'Costo mínimo'],
+    ['vogel', 'Vogel'], ['russell', 'Russell'], ['modi', 'MODI'], ['hungarian', 'Húngaro']]);
+  const difficulty = field('Dificultad', [...new Set([...lpExercises.map(({ level }) => level),
+    ...allExercises.map((exercise) => exercise.difficulty)])].map((level) => [level, level]));
+  const objective = field('Objetivo', [['max', 'Maximizar'], ['min', 'Minimizar']]);
+  const prerequisite = field('Conocimientos', [...new Set(lpExercises.flatMap((item) => item.prerequisites))]
+    .map((name) => [name, name]));
+  const accepts = (control, values) => control.value === 'all' || values.includes(control.value);
   const normalize = (text) => text.normalize('NFD').replaceAll(/[\u0300-\u036f]/g, '').toLowerCase();
   function update() {
     const word = normalize(query.value.trim());
-    const found = allExercises.filter((exercise) => (filter.value === 'all' || filter.value === exercise.topic) &&
+    const linear = lpExercises.filter((item) => accepts(filter, linearTopics) && accepts(method, linearTopics) &&
+      accepts(difficulty, [item.level]) && accepts(objective, item.variants.map(({ draft }) => draft.sense)) &&
+      accepts(prerequisite, item.prerequisites) &&
+      normalize([item.title, item.source, item.statement, 'método gráfico método simplex'].join(' ')).includes(word));
+    const found = allExercises.filter((exercise) => accepts(filter, [exercise.topic]) && accepts(method, exercise.methods) &&
+      accepts(prerequisite, []) &&
+      accepts(difficulty, [exercise.difficulty]) && accepts(objective, [exercise.draft.objective ?? 'min']) &&
       normalize([exercise.title, exercise.source, exercise.text, ...exercise.methods].join(' ')).includes(word));
-    results.replaceChildren(...(found.length ? found.map((exercise) =>
+    results.replaceChildren(...linear.map((item) => el('article', { class: 'card' },
+      el('p', { class: 'chip' }, item.level), el('h2', {}, item.title), lpStatement(item),
+      el('p', { class: 'dim' }, 'Conocimientos previos · ' + item.prerequisites.join(' · ')),
+      el('div', { class: 'actions' }, linearTopics.filter((topic) => accepts(filter, [topic]) && accepts(method, [topic])).map((topic) =>
+        button(lpTitles[topic], () => openLP(topic, item.id, 'learn')))))),
+    ...(found.length ? found.map((exercise) =>
       el('article', { class: 'card' },
         el('p', { class: 'chip' }, topicLabels[exercise.topic] + ' · ' + exercise.difficulty),
         el('h2', {}, exercise.title),
@@ -220,14 +295,18 @@ function renderLibrary() {
           button('Abrir editor', () => openExercise(exercise.id), { 'aria-label': 'Abrir ' + exercise.title }),
           button('Aprender', () => openExercise(exercise.id, { mode: 'learn', optimize: true }), { 'aria-label': 'Aprender con ' + exercise.title }),
           button('Practicar', () => openExercise(exercise.id, { mode: 'practice', optimize: true }), { 'aria-label': 'Practicar con ' + exercise.title }))
-      )) : [el('p', { role: 'status' }, 'No se encontraron ejercicios con esos filtros.')]));
+      )) : linear.length ? [] : [el('p', { role: 'status' }, 'No se encontraron ejercicios con esos filtros.')]));
   }
   query.addEventListener('input', update);
-  filter.addEventListener('change', update);
+  for (const control of [filter, method, difficulty, objective, prerequisite]) control.addEventListener('change', update);
   update();
   return el('div', {}, pageTitle('Biblioteca de ejercicios', 'Problemas de las clases y las guías, con casos propios para practicar.'),
     el('div', { class: 'filter-bar' }, el('label', { class: 'field-vertical' }, 'Buscar', query),
-      el('label', { class: 'field-vertical' }, 'Tema', filter)), results);
+      el('label', { class: 'field-vertical' }, 'Tema', filter),
+      el('label', { class: 'field-vertical' }, 'Método', method),
+      el('label', { class: 'field-vertical' }, 'Dificultad', difficulty),
+      el('label', { class: 'field-vertical' }, 'Objetivo', objective),
+      el('label', { class: 'field-vertical' }, 'Conocimientos', prerequisite)), results);
 }
 
 function renderLab(topic) {
@@ -236,7 +315,20 @@ function renderLab(topic) {
   const fallback = getExercise(topic === 'transport' ? 'mataderos' : 'maquinas');
   const draft = state.drafts[topic] ?? (state.drafts[topic] = exerciseDraft(fallback));
   const source = preset?.exercise || getExercise(draft.exerciseId);
-  const lab = topic === 'transport' ? transportLab(draft, preset ?? {}) : assignmentLab(draft, source);
+  const checkpoint = (method) => {
+    const signature = JSON.stringify([
+      draft.exerciseId, draft.rows, draft.columns, draft.costs, draft.supply, draft.demand,
+      draft.fictitiousRow, draft.objective, draft.requiredRows, draft.requiredColumns, method
+    ]);
+    return {
+      read: () => state.practice[topic]?.signature === signature ? state.practice[topic].history : [],
+      write: (history) => {
+        state.practice[topic] = { signature, history: structuredClone(history) };
+        save();
+      }
+    };
+  };
+  const lab = topic === 'transport' ? transportLab(draft, preset ?? {}, checkpoint) : assignmentLab(draft, source, checkpoint);
   const statement = source && exerciseStatement(source, { heading: 'h2', focusable: true });
   const status = el('p', { class: 'status', role: 'status' });
   let invalidField = '';

@@ -222,6 +222,15 @@ progress { accent-color: var(--accent); width: min(100%, 530px); height: 14px; }
 .pick-cell { width: 100%; min-width: 47px; padding: 3px; }
 .alternative { padding-top: 12px; border-top: 1px solid var(--line); }
 .problem-options { display: grid; gap: 7px; margin: 12px 0; }
+.lp-plot { display: block; width: 100%; background: var(--paper); border: 1px solid var(--line); border-radius: 10px; }
+.lp-plot text { fill: var(--ink); font: 14px var(--mono); }
+.lp-axis { stroke: var(--muted); }
+.lp-boundary { stroke: var(--accent); stroke-width: 2; animation: mark .22s ease-out; }
+.lp-objective { stroke: var(--gold); stroke-width: 3; stroke-dasharray: 7 4; }
+.lp-region { fill: var(--accent-soft); stroke: var(--accent); animation: mark .22s ease-out; }
+.lp-path { fill: none; stroke: var(--gold); stroke-width: 3; }
+.lp-point { fill: var(--accent); stroke: var(--paper); }
+.lp-row { min-width: 0; border: 1px solid var(--line); border-radius: 8px; }
 .checkbox-grid { display: flex; flex-wrap: wrap; gap: 6px 18px; }
 .checkbox-grid label { min-height: 44px; }
 .matrix .zero-cell { color: var(--accent); font-weight: 700; }
